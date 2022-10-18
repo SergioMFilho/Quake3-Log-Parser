@@ -7,19 +7,30 @@ async function readFileByLine(file) {
     crlfDelay: Infinity,
   });
 
+  let currentGame = 0;
   let games = [];
 
-  let players = [];
-
   for await (const line of rl) {
+    if (line.includes("InitGame:")) {
+      currentGame++;
+      games.push({
+        game: currentGame,
+        status: {
+          total_kills: 0,
+          players: [],
+        },
+      });
+    }
     if (line.includes("ClientConnect:")) {
-      //Verifica o mlk que entrou e adiciona no array de players
+      //Verifica que o jogador entrou e adiciona no array de players
       const id = Number(line.split("ClientConnect: ")[1]);
       // console.log(id);
-      const playerFound = players.find((player) => player.id === id);
+      const playerFound = games[currentGame - 1].status.players.find(
+        (player) => player.id === id
+      );
       // console.log({ playerFound });
       if (!playerFound) {
-        players.push({
+        games[currentGame - 1].status.players.push({
           id: id,
           nome: "",
           kills: 0,
@@ -30,12 +41,12 @@ async function readFileByLine(file) {
     }
 
     if (line.includes("ClientUserinfoChanged:")) {
-      //Verifica o novo nome que o mlk escolheu
+      //Verifica o novo nome que o jogador escolheu
       const idFound = Number(
         line.split("ClientUserinfoChanged: ")[1].split(" n")[0]
       );
       const name = line.split(" n")[1].split("t")[0].replace(/\\/g, "");
-      players = players.map((player) => {
+      const newInfo = games[currentGame - 1].status.players.map((player) => {
         if (player.id === idFound) {
           if (player.nome && player.nome !== name) {
             return {
@@ -51,62 +62,64 @@ async function readFileByLine(file) {
           }
         } else return player;
       });
+      games[currentGame - 1].status.players = newInfo;
     }
 
-    // 20:54 Kill: 1022 2 22: <world> killed Isgalamido by MOD_TRIGGER_HURT
-    // 22:06 Kill: 2 3 7: Isgalamido killed Mocinha by MOD_ROCKET_SPLASH
     if (line.includes("killed")) {
       const kill_ids = line.split("Kill: ")[1].split(":")[0];
       const killer_id = Number(kill_ids.split(" ")[0]);
       const killed_id = Number(kill_ids.split(" ")[1]);
-      const weapon = Number(kill_ids.split(" ")[2]); 
 
+      games[currentGame - 1].status.total_kills = ++games[currentGame - 1]
+        .status.total_kills;
 
       if (killer_id === 1022) {
-        players = players.map((player) => {
+        const newInfo2 = games[currentGame - 1].status.players.map((player) => {
           if (player.id === killed_id) {
             return {
               ...player,
               kills: player.kills - 1,
-              deaths: player.deaths + 1
+              deaths: player.deaths + 1,
             };
           } else {
             return player;
           }
         });
+        games[currentGame - 1].status.players = newInfo2;
       } else {
         if (killer_id !== killed_id) {
-          //verificando se se matou ou matou outro mlk
-          players = players.map((player) => {
-            if (player.id === killer_id) {
-              return {
-                ...player,
-                kills: player.kills + 1,
-              };
-            } else {
-              return player;
+          //verificando se o player se matou ou matou outro player
+          const newInfo3 = games[currentGame - 1].status.players.map(
+            (player) => {
+              if (player.id === killer_id) {
+                return {
+                  ...player,
+                  kills: player.kills + 1,
+                };
+              } else {
+                return player;
+              }
             }
-          });
-          players = players.map((player) => {
-            if (player.id === killed_id) {
-              return {
-                ...player,
-                deaths: player.deaths + 1
-              };
-            } else {
-              return player;
+          );
+          games[currentGame - 1].status.players = newInfo3;
+          const newInfo4 = games[currentGame - 1].status.players.map(
+            (player) => {
+              if (player.id === killed_id) {
+                return {
+                  ...player,
+                  deaths: player.deaths + 1,
+                };
+              } else {
+                return player;
+              }
             }
-          });
+          );
+          games[currentGame - 1].status.players = newInfo4;
         }
       }
     }
-
-    if (line.includes("ShutdownGame")) {
-      //fim da partida
-      console.log(players);
-      return;
-    }
   }
+  return games;
 }
-
-readFileByLine("Quake.txt");
+// readFileByLine("Quake.txt").then((res) => console.log(res));
+// Testando o resultado final
