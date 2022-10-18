@@ -59,6 +59,8 @@ async function readFileByLine(file) {
       const kill_ids = line.split("Kill: ")[1].split(":")[0];
       const killer_id = Number(kill_ids.split(" ")[0]);
       const killed_id = Number(kill_ids.split(" ")[1]);
+      const weapon = Number(kill_ids.split(" ")[2]); 
+
 
       if (killer_id === 1022) {
         players = players.map((player) => {
@@ -66,6 +68,7 @@ async function readFileByLine(file) {
             return {
               ...player,
               kills: player.kills - 1,
+              deaths: player.deaths + 1
             };
           } else {
             return player;
@@ -79,6 +82,16 @@ async function readFileByLine(file) {
               return {
                 ...player,
                 kills: player.kills + 1,
+              };
+            } else {
+              return player;
+            }
+          });
+          players = players.map((player) => {
+            if (player.id === killed_id) {
+              return {
+                ...player,
+                deaths: player.deaths + 1
               };
             } else {
               return player;
